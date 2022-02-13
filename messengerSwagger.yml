@@ -1,0 +1,135 @@
+swagger: "2.0"
+info:
+  description: This is the swagger file that goes with our server code
+  version: "1.0.0"
+  title: Swagger REST Article
+consumes:
+  - "application/json"
+produces:
+  - "application/json"
+
+basePath: "/api"
+
+paths:
+  /createUser:
+    put:
+      operationId: "messenger.createUser"
+      tags:
+        - "Login"
+      summary: "Create a new user"
+      parameters:
+        - name: email
+          in: query
+          required: True
+          type: string
+        - name: password
+          in: query
+          required: True
+          type: string
+        - name: phoneNumber
+          in: query
+          required: True
+          type: string
+        - name: name
+          in: query
+          required: True
+          type: string
+        - name: surname
+          in: query
+          required: True
+          type: string
+      responses:
+        200:
+          description: "Successful creation of a user"
+        409:
+          description: "Email already in use"
+  /loginUser:
+    get:
+      operationId: "messenger.loginUser"
+      summary: "Login a user"
+      parameters:
+        - name: email
+          in: query
+          required: False
+          type: string
+        - name: password
+          in: query
+          required: True
+          type: string
+        - name: phoneNumber
+          in: query
+          required: False
+          type: string
+      responses:
+        200:
+          description: "Successful login of a user"
+        409:
+          description: "Invalid email or password"
+  /sendFriendRequest:
+    put:
+      operationId: "messenger.sendFriendRequest"
+      summary: "Send a friend request"
+      parameters:
+        - name: userId
+          in: query
+          required: True
+          type: integer
+        - name: friendsId
+          in: query
+          required: True
+          type: integer
+        - name: apiKey
+          in: query
+          required: True
+          type: string
+      responses:
+        200:
+          description: "A request has been send"
+        409:
+          description: "Invalid friend id"
+        401:
+          description: "Invalid user"
+  /answerFriendRequest:
+    put:
+      operationId: "messenger.answerFriendRequest"
+      summary: "Reject or accept a request"
+      parameters:
+        - name: userId
+          in: query
+          required: True
+          type: integer
+        - name: requestId
+          in: query
+          required: True
+          type: integer
+        - name: apiKey
+          in: query
+          required: True
+          type: string
+        - name: decision
+          in: query
+          type: boolean
+          required: True
+      responses:
+        200:
+          description: "Answer successful"
+        401:
+          description: "Invalid user"
+        409:
+          description: "Invalid request id"
+  /loadData:
+    get:
+      operationId: "messenger.loadData"
+      summary: "Load data"
+      parameters:
+        - name: id
+          in: query
+          required: True
+          type: integer
+        - name: api_key
+          in: query
+          required: True
+          type: string
+      responses: 
+        200:
+          description: "data here"
