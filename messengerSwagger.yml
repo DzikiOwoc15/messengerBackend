@@ -117,6 +117,26 @@ paths:
           description: "Invalid user"
         409:
           description: "Invalid request id"
+  /sendMessage:
+    put:
+      operationId: "messenger.sendMessage"
+      summary: "Send message to another user"
+      parameters:
+        - name: id
+          in: query
+          required: True
+          type: integer
+        - name: friendsId
+          in: query
+          required: True
+          type: integer
+        - name: message
+          in: query
+          required: True
+          type: string
+      responses:
+        200:
+          description: "message sent successfully"
   /loadData:
     get:
       operationId: "messenger.loadData"
