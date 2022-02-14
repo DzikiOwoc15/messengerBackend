@@ -173,6 +173,7 @@ def test_send_message(app):
                       f"message={message}&&"
                       f"apiKey={api_key}")
     assert request.status_code == 200
+    assert request.get_data(as_text=True) == "Message sent successfully"
 
 
 def test_send_message_invalid_api_key(app):
@@ -206,6 +207,8 @@ def test_delete_user(app):
     # Delete user and friend instance after the test
     connection = databaseConnect.get_connection()
     cursor = connection.cursor()
+    query_messages = f"DELETE FROM messenger_messages WHERE authors_id = {test_id}"
+    cursor.execute(query_messages)
     query_friends = f"DELETE FROM messenger_friends WHERE user_id = {test_id}"
     cursor.execute(query_friends)
     query = "DELETE FROM messenger_users WHERE email = %s or email = %s"

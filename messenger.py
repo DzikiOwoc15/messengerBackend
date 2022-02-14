@@ -5,7 +5,7 @@ import emailSending
 import os
 from binascii import hexlify
 from flask import make_response, jsonify
-
+import logging
 
 #       Current schema:
 #           User:
@@ -189,7 +189,7 @@ def sendMessage(id, friendsId, message, apiKey):
     key_valid = is_api_key_valid(id, apiKey)
     if key_valid:
         try:
-            query = "INSERT INTO messenger_users(authors_id, receivers_id, message) VALUES(%s, %s, %s)"
+            query = "INSERT INTO messenger_messages(authors_id, receivers_id, message) VALUES (%s, %s, %s)"
             cursor.execute(query, (id, friendsId, message,))
             connect.commit()
             connect.close()

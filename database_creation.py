@@ -77,3 +77,6 @@ def create_table_messages():
     connect.commit()
     cursor.close()
     connect.close()
+
+
+
