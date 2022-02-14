@@ -5,7 +5,7 @@ import emailSending
 import os
 from binascii import hexlify
 from flask import make_response, jsonify
-import logging
+
 
 #       Current schema:
 #           User:
@@ -172,6 +172,7 @@ def answerFriendRequest(userId, requestId, apiKey, decision):
         try:
             query = "UPDATE messenger_friends SET status = %s WHERE relation_id = %s"
             cursor.execute(query, (decision, requestId,))
+            connect.commit()
             connect.close()
             cursor.close()
             return make_response("Answer successful", 200)
@@ -183,18 +184,49 @@ def answerFriendRequest(userId, requestId, apiKey, decision):
         return make_response("Invalid user authorization", 401)
 
 
-def sendMessage(id, friendsId, message, apiKey):
+# TODO UPDATE RETURN JSON SCHEMA
+def loadFriendRequests(userId, apiKey):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
-    key_valid = is_api_key_valid(id, apiKey)
+    key_valid = is_api_key_valid(userId, apiKey)
+    if key_valid:
+        query = "SELECT relation_id, user_id FROM messenger_friends WHERE friend_id = %s AND status = False"
+        cursor.execute(query, (userId,))
+        result = cursor.fetchall()
+        requests = []
+        for x in result:
+            obj = {"relation_id": x[0], "user_id": x[1]}
+            requests.append(obj)
+        connect.close()
+        cursor.close()
+        return make_response(jsonify(requests=requests), 200)
+    else:
+        connect.close()
+        cursor.close()
+        return make_response("Invalid user authorization", 401)
+
+
+def sendMessage(userId, friendsId, message, apiKey):
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
         try:
-            query = "INSERT INTO messenger_messages(authors_id, receivers_id, message) VALUES (%s, %s, %s)"
-            cursor.execute(query, (id, friendsId, message,))
-            connect.commit()
+            query_check_friend = "SELECT * FROM messenger_friends WHERE" \
+                                 " ((user_id = %s AND friend_id = %s) OR (user_id = %s AND friend_id = %s))" \
+                                 " AND status = True"
+            cursor.execute(query_check_friend, (userId, friendsId, friendsId, userId,))
+            result = cursor.fetchall()
+            if len(result) != 0:
+                query = "INSERT INTO messenger_messages(authors_id, receivers_id, message) VALUES (%s, %s, %s)"
+                cursor.execute(query, (userId, friendsId, message,))
+                connect.commit()
+                connect.close()
+                cursor.close()
+                return make_response("Message sent successfully", 200)
             connect.close()
             cursor.close()
-            return make_response("Message sent successfully", 200)
+            return make_response("User is not a friend", 406)
         except Exception:
             return make_response("Invalid id", 409)
     else:

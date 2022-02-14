@@ -24,6 +24,8 @@ friends_email = "imafriend@com.pl"
 friends_password = "imapassword"
 friends_phone = 999888777
 
+relation_id = None
+
 message = "test_message"
 long_message = "Z0mygGA06FfNpsg2IrMnKpbiN1JsHSRTfXgE18B2GDiRu2eGtyeBLqZaxjrEPxU2vcgtPSu4Ob5Bgn80aD8ozT2A3jkpUgGVDaJm" \
                "RgkaiA6SRaTzaZ76LuHSaEXKsuc5pHEsvATrRaFxkXgcnBr28OYqap2V3fZ08lVl24hxKbQ2ut11TX56XilaVT77wkRZucb6yhmX" \
@@ -125,6 +127,15 @@ def test_login_user_wrong_phone(app):
     assert failed_login.get_data(as_text=True) == "Invalid email or phone number"
 
 
+def test_send_message_not_a_friend(app):
+    request = app.put(f"api/sendMessage?"
+                      f"userId={test_id}&&"
+                      f"friendsId={friend_id}&&"
+                      f"message={message}&&"
+                      f"apiKey={api_key}")
+    assert request.status_code == 406
+
+
 def test_add_friend(app):
     request = app.put(f"api/sendFriendRequest?userId={test_id}&&friendsId={friend_id}&&apiKey={api_key}")
     assert request.status_code == 200
@@ -140,16 +151,36 @@ def test_add_friend(app):
     assert not record[0][3]
 
 
+def test_load_friend_requests(app):
+    global relation_id
+    result = app.get(f"api/loadFriendRequests?userId={friend_id}&&apiKey={friend_api_key}")
+    assert result.status_code == 200
+    result_json = json.loads(result.get_data(as_text=True))
+    assert isinstance(result_json["requests"][0]["relation_id"], int)
+    relation_id = result_json["requests"][0]["relation_id"]
+
+
 # Confirm the request
 def test_confirm_friend_request(app):
     request = app.put(f"api/answerFriendRequest?"
                       f"userId={friend_id}&&"
-                      f"requestId={test_id}&&"
+                      f"requestId={relation_id}&&"
                       f"apiKey={friend_api_key}&&"
                       f"decision={True}")
     assert request.status_code == 200
 
+    # Check the database for the request
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    query = f"SELECT * FROM messenger_friends WHERE user_id = {test_id}"
+    cursor.execute(query)
+    record = cursor.fetchall()
+    assert record[0][2] == friend_id
+    assert record[0][1] == test_id
+    assert record[0][3]
 
+
+# TODO FIX THIS
 def test_add_friend_invalid_friends_id(app):
     request = app.put(f"api/sendFriendRequest?userId={test_id}&&friendsId={0}&&apiKey={api_key}")
     assert request.status_code == 409
@@ -168,7 +199,7 @@ def test_login_user_wrong_password(app):
 
 def test_send_message(app):
     request = app.put(f"api/sendMessage?"
-                      f"id={test_id}&&"
+                      f"userId={test_id}&&"
                       f"friendsId={friend_id}&&"
                       f"message={message}&&"
                       f"apiKey={api_key}")
@@ -178,7 +209,7 @@ def test_send_message(app):
 
 def test_send_message_invalid_api_key(app):
     failed_request = app.put(f"api/sendMessage?"
-                             f"id={test_id}&&"
+                             f"userId={test_id}&&"
                              f"friendsId={friend_id}&&"
                              f"message={message}&&"
                              f"apiKey={invalid_key}")
@@ -187,7 +218,7 @@ def test_send_message_invalid_api_key(app):
 
 def test_send_message_invalid_friend_id(app):
     failed_request = app.put(f"api/sendMessage?"
-                             f"id={test_id}&&"
+                             f"userId={test_id}&&"
                              f"friendsId={0}&&"
                              f"message={message}&&"
                              f"apiKey={api_key}")
@@ -196,7 +227,7 @@ def test_send_message_invalid_friend_id(app):
 
 def test_send_message_very_long_text(app):
     request = app.put(f"api/sendMessage?"
-                      f"id={test_id}&&"
+                      f"userId={test_id}&&"
                       f"friendsId={friend_id}&&"
                       f"message={long_message}&&"
                       f"apiKey={api_key}")
