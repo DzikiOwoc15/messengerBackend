@@ -7,6 +7,7 @@ test_id = None
 friend_id = None
 api_key = None
 friend_api_key = None
+invalid_key = "none"
 
 test_name = "Kamil"
 test_surname = "R"
@@ -22,6 +23,12 @@ friends_surname = "Surname"
 friends_email = "imafriend@com.pl"
 friends_password = "imapassword"
 friends_phone = 999888777
+
+message = "test_message"
+long_message = "Z0mygGA06FfNpsg2IrMnKpbiN1JsHSRTfXgE18B2GDiRu2eGtyeBLqZaxjrEPxU2vcgtPSu4Ob5Bgn80aD8ozT2A3jkpUgGVDaJm" \
+               "RgkaiA6SRaTzaZ76LuHSaEXKsuc5pHEsvATrRaFxkXgcnBr28OYqap2V3fZ08lVl24hxKbQ2ut11TX56XilaVT77wkRZucb6yhmX" \
+               "RjjfpNeGIvSp2bfpdKTQ96HaSquYg8tfwibn4d6D9NfLRlZJ16Qmr35xxJkKQ3Pmds636kye5gK7KX5klJ9wTKbjyRKD8c8o8sIS" \
+               "M4dNJTAAfQSTdn0EQfb9zQyzEwCaniTeGoiDqaLtHN2UutISw6BZYRJncDRx2MzQTU3tuvg2KdgfLcCsWH5WkFf2LnPNkbApLZnp "
 
 
 @pytest.fixture
@@ -149,7 +156,6 @@ def test_add_friend_invalid_friends_id(app):
 
 
 def test_add_friend_invalid_api_key(app):
-    invalid_key = "none"
     request = app.put(f"api/sendFriendRequest?userId={test_id}&&friendsId={0}&&apiKey={invalid_key}")
     assert request.status_code == 401
 
@@ -158,6 +164,42 @@ def test_login_user_wrong_password(app):
     failed_login = app.get(f"api/loginUser?email={test_email}&&password={wrong_password}")
     assert failed_login.status_code == 400
     assert failed_login.get_data(as_text=True) == "Wrong password"
+
+
+def test_send_message(app):
+    request = app.put(f"api/sendMessage?"
+                      f"id={test_id}&&"
+                      f"friendsId={friend_id}&&"
+                      f"message={message}&&"
+                      f"apiKey={api_key}")
+    assert request.status_code == 200
+
+
+def test_send_message_invalid_api_key(app):
+    failed_request = app.put(f"api/sendMessage?"
+                             f"id={test_id}&&"
+                             f"friendsId={friend_id}&&"
+                             f"message={message}&&"
+                             f"apiKey={invalid_key}")
+    assert failed_request.status_code == 401
+
+
+def test_send_message_invalid_friend_id(app):
+    failed_request = app.put(f"api/sendMessage?"
+                             f"id={test_id}&&"
+                             f"friendsId={0}&&"
+                             f"message={message}&&"
+                             f"apiKey={api_key}")
+    assert failed_request.status_code == 409
+
+
+def test_send_message_very_long_text(app):
+    request = app.put(f"api/sendMessage?"
+                      f"id={test_id}&&"
+                      f"friendsId={friend_id}&&"
+                      f"message={long_message}&&"
+                      f"apiKey={api_key}")
+    assert request.status_code == 200
 
 
 def test_delete_user(app):
@@ -171,5 +213,3 @@ def test_delete_user(app):
     connection.commit()
     connection.close()
     cursor.close()
-
-

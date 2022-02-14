@@ -133,7 +133,7 @@ paths:
         - name: message
           in: query
           required: True
-          type: integer
+          type: string
         - name: apiKey
           in: query
           required: True
