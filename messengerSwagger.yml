@@ -133,10 +133,18 @@ paths:
         - name: message
           in: query
           required: True
+          type: integer
+        - name: apiKey
+          in: query
+          required: True
           type: string
       responses:
         200:
           description: "message sent successfully"
+        401:
+          description: "Invalid user"
+        409:
+          description: "Invalid id"
   /loadData:
     get:
       operationId: "messenger.loadData"
