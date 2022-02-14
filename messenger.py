@@ -69,7 +69,7 @@ def getSalt(data, type="email"):
     return record[0][0]
 
 
-def checkApiKey(user_id, api_key):
+def is_api_key_valid(user_id, api_key):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
     query = "SELECT messenger_users.api_key FROM messenger_users WHERE id = %s"
@@ -124,7 +124,7 @@ def loginUser(password, email=None, phoneNumber=None):
 def loadData(id, api_key):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
-    key_valid = checkApiKey(id, api_key)
+    key_valid = is_api_key_valid(id, api_key)
     if key_valid:
         query = "SELECT messenger_users.email, messenger_users.id FROM messenger_users WHERE messenger_users.id IN (" \
                 "SELECT friend_id FROM public.messenger_friends WHERE messenger_friends.id = %s AND " \
@@ -147,7 +147,7 @@ def loadData(id, api_key):
 def sendFriendRequest(userId, friendsId, apiKey):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
-    key_valid = checkApiKey(userId, apiKey)
+    key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
         try:
             query = f"INSERT INTO messenger_friends(user_id, friend_id) VALUES ({userId}, {friendsId})"
@@ -158,7 +158,6 @@ def sendFriendRequest(userId, friendsId, apiKey):
             return make_response("A request has been send", 200)
         except Exception as error:
             return make_response("Invalid friend id", 409)
-        # do sth
     else:
         connect.close()
         cursor.close()
@@ -168,7 +167,7 @@ def sendFriendRequest(userId, friendsId, apiKey):
 def answerFriendRequest(userId, requestId, apiKey, decision):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
-    key_valid = checkApiKey(userId, apiKey)
+    key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
         try:
             query = "UPDATE messenger_friends SET status = %s WHERE relation_id = %s"
@@ -181,4 +180,22 @@ def answerFriendRequest(userId, requestId, apiKey, decision):
     else:
         connect.close()
         cursor.close()
+        return make_response("Invalid user authorization", 401)
+
+
+def sendMessage(id, friendsId, message, apiKey):
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    key_valid = is_api_key_valid(id, apiKey)
+    if key_valid:
+        try:
+            query = "INSERT INTO messenger_users(authors_id, receivers_id, message) VALUES(%s, %s, %s)"
+            cursor.execute(query, (id, friendsId, message,))
+            connect.commit()
+            connect.close()
+            cursor.close()
+            return make_response("Message sent successfully", 200)
+        except Exception:
+            return make_response("Invalid id", 409)
+    else:
         return make_response("Invalid user authorization", 401)
