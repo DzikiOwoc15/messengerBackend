@@ -68,6 +68,16 @@ def test_user_create(app):
     assert response_2.status_code == 200
 
 
+def test_user_create_check_database(app):
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    query = "SELECT name FROM messenger_users WHERE surname IN (%s, %s)"
+    cursor.execute(query, (test_surname, friends_surname,))
+    result = cursor.fetchall()
+    assert result[0][0] == test_name
+    assert result[1][0] == friends_name
+
+
 def test_user_already_exists_same_email(app):
     second_response = app.put(f"api/createUser?"
                               f"email={test_email}&&"
@@ -180,7 +190,6 @@ def test_confirm_friend_request(app):
     assert record[0][3]
 
 
-# TODO FIX THIS
 def test_add_friend_invalid_friends_id(app):
     request = app.put(f"api/sendFriendRequest?userId={test_id}&&friendsId={0}&&apiKey={api_key}")
     assert request.status_code == 409
