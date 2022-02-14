@@ -54,3 +54,26 @@ def create_table_friends():
     cursor.close()
     connect.close()
 
+
+# messenger_messages
+#       message_id: integer
+#       authors_id: integer
+#       receivers_id: integer
+#       message: text
+#       messages_date: timestamp
+#
+def create_table_messages():
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    query = """CREATE TABLE messenger_messages(
+                message_id INTEGER NOT NULL PRIMARY KEY GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+                authors_id INTEGER NOT NULL REFERENCES messenger_users (id),
+                receivers_id INTEGER NOT NULL REFERENCES messenger_users (id),
+                message TEXT NOT NULL,
+                messages_date TIMESTAMP NOT NULL DEFAULT current_timestamp
+            )
+    """
+    cursor.execute(query)
+    connect.commit()
+    cursor.close()
+    connect.close()
