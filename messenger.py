@@ -184,7 +184,6 @@ def answerFriendRequest(userId, requestId, apiKey, decision):
         return make_response("Invalid user authorization", 401)
 
 
-# TODO UPDATE RETURN JSON SCHEMA
 def loadFriendRequests(userId, apiKey):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
@@ -226,8 +225,8 @@ def sendMessage(userId, friendsId, message, apiKey):
                 return make_response("Message sent successfully", 200)
             connect.close()
             cursor.close()
-            return make_response("User is not a friend", 406)
+            return make_response("User is not a friend or id is invalid", 406)
         except Exception:
-            return make_response("Invalid id", 409)
+            return make_response("User is not a friend or id is invalid", 406)
     else:
         return make_response("Invalid user authorization", 401)

@@ -161,7 +161,7 @@ paths:
           description: "message sent successfully"
         401:
           description: "Invalid user"
-        409:
+        406:
           description: "Invalid id"
   /loadData:
     get:

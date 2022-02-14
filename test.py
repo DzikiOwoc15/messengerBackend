@@ -206,6 +206,15 @@ def test_send_message(app):
     assert request.status_code == 200
     assert request.get_data(as_text=True) == "Message sent successfully"
 
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    query = f"SELECT message FROM messenger_messages WHERE authors_id = {test_id}"
+    cursor.execute(query)
+    result = cursor.fetchone()
+    cursor.close()
+    connect.close()
+    assert result[0] == message
+
 
 def test_send_message_invalid_api_key(app):
     failed_request = app.put(f"api/sendMessage?"
@@ -222,7 +231,7 @@ def test_send_message_invalid_friend_id(app):
                              f"friendsId={0}&&"
                              f"message={message}&&"
                              f"apiKey={api_key}")
-    assert failed_request.status_code == 409
+    assert failed_request.status_code == 406
 
 
 def test_send_message_very_long_text(app):
@@ -242,8 +251,8 @@ def test_delete_user(app):
     cursor.execute(query_messages)
     query_friends = f"DELETE FROM messenger_friends WHERE user_id = {test_id}"
     cursor.execute(query_friends)
-    query = "DELETE FROM messenger_users WHERE email = %s or email = %s"
-    cursor.execute(query, (test_email, friends_email,))
+    query_users = "DELETE FROM messenger_users WHERE email = %s or email = %s"
+    cursor.execute(query_users, (test_email, friends_email,))
     connection.commit()
     connection.close()
     cursor.close()
