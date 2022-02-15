@@ -176,7 +176,7 @@ def test_confirm_friend_request(app):
                       f"userId={friend_id}&&"
                       f"requestId={relation_id}&&"
                       f"apiKey={friend_api_key}&&"
-                      f"decision={True}")
+                      f"isAccepted={True}")
     assert request.status_code == 200
 
     # Check the database for the request

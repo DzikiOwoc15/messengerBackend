@@ -106,7 +106,7 @@ paths:
           in: query
           required: True
           type: string
-        - name: decision
+        - name: isAccepted
           in: query
           type: boolean
           required: True
@@ -168,14 +168,16 @@ paths:
       operationId: "messenger.loadData"
       summary: "Load data"
       parameters:
-        - name: id
+        - name: userId
           in: query
           required: True
           type: integer
-        - name: api_key
+        - name: apiKey
           in: query
           required: True
           type: string
       responses: 
         200:
-          description: "data here"
+          description: "data loaded"
+        401:
+          description: "Invalid user"

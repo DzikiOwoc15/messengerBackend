@@ -121,27 +121,28 @@ def loginUser(password, email=None, phoneNumber=None):
         return make_response("Wrong password", 400)
 
 
-def loadData(id, api_key):
+def loadData(userId, apiKey):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
-    key_valid = is_api_key_valid(id, api_key)
+    key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
-        query = "SELECT messenger_users.email, messenger_users.id FROM messenger_users WHERE messenger_users.id IN (" \
-                "SELECT friend_id FROM public.messenger_friends WHERE messenger_friends.id = %s AND " \
-                "messenger_friends.request_accepted = true) "
-        cursor.execute(query, (id,))
-        record = cursor.fetchall()
-        friends_list = []
-        for friend in range(len(record)):
-            friend_entry = {"email": record[friend][0], "id": record[friend][1]}
-            friends_list.append(friend_entry)
+        query = "SELECT messenger_users.id, messenger_users.name, messenger_users.surname FROM messenger_users" \
+                "JOIN messenger_friends ON messenger_users.id = messenger_friends.user_id" \
+                "WHERE messenger_friends.friend_id = %s AND messenger_friends.status = True"
+        cursor.execute(query, (userId,))
+        result = cursor.fetchall()
+        friends = []
+        for friend in result:
+            obj = {"id": friend[0], "name": friend[1], "surname": friend[2]}
+            friends.append(obj)
+        connect.commit()
         connect.close()
         cursor.close()
-        return make_response(jsonify(friends=friends_list), 200)
+        return make_response(jsonify(friends=friends), 200)
     else:
         connect.close()
         cursor.close()
-        return make_response("invalid key", 400)
+        return make_response("invalid key", 401)
 
 
 def sendFriendRequest(userId, friendsId, apiKey):
@@ -164,14 +165,20 @@ def sendFriendRequest(userId, friendsId, apiKey):
         return make_response("Invalid user authorization", 401)
 
 
-def answerFriendRequest(userId, requestId, apiKey, decision):
+def answerFriendRequest(userId, requestId, apiKey, isAccepted):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
     key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
         try:
-            query = "UPDATE messenger_friends SET status = %s WHERE relation_id = %s"
-            cursor.execute(query, (decision, requestId,))
+            if isAccepted:
+                query = "UPDATE messenger_friends SET status = True WHERE relation_id = %s"
+                cursor.execute(query, (requestId,))
+                get_friends_ID = f"SELECT user_id FROM messenger_friends WHERE relation_id = {requestId}"
+                cursor.execute(get_friends_ID)
+                friends_id = cursor.fetchone()[0]
+                insert_relation = "INSERT INTO messenger_friends(user_id, friend_id, status) VALUES (%s, %s, True)"
+                cursor.execute(insert_relation, (userId, friends_id,))
             connect.commit()
             connect.close()
             cursor.close()
@@ -212,9 +219,9 @@ def sendMessage(userId, friendsId, message, apiKey):
     if key_valid:
         try:
             query_check_friend = "SELECT * FROM messenger_friends WHERE" \
-                                 " ((user_id = %s AND friend_id = %s) OR (user_id = %s AND friend_id = %s))" \
+                                 " user_id = %s AND friend_id = %s" \
                                  " AND status = True"
-            cursor.execute(query_check_friend, (userId, friendsId, friendsId, userId,))
+            cursor.execute(query_check_friend, (userId, friendsId,))
             result = cursor.fetchall()
             if len(result) != 0:
                 query = "INSERT INTO messenger_messages(authors_id, receivers_id, message) VALUES (%s, %s, %s)"
