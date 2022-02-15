@@ -258,7 +258,7 @@ def test_delete_user(app):
     cursor = connection.cursor()
     query_messages = f"DELETE FROM messenger_messages WHERE authors_id = {test_id}"
     cursor.execute(query_messages)
-    query_friends = f"DELETE FROM messenger_friends WHERE user_id = {test_id}"
+    query_friends = f"DELETE FROM messenger_friends WHERE user_id = {test_id} or friend_id = {test_id}"
     cursor.execute(query_friends)
     query_users = "DELETE FROM messenger_users WHERE email = %s or email = %s"
     cursor.execute(query_users, (test_email, friends_email,))
