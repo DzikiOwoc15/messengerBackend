@@ -2,15 +2,15 @@ import databaseConnect
 import psycopg2
 
 
-# messenger_user:
-#   id: integer
-#   name: text
-#   surname: text
-#   email:  text
-#   phone_number: text
-#   password: bytea
-#   salt: bytea
-#   api_key: bytea
+#   messenger_user:
+#       id: integer
+#       name: text
+#       surname: text
+#       email:  text
+#       phone_number: text
+#       password: bytea
+#       salt: bytea
+#       api_key: bytea
 #
 def create_table_users():
     connect = databaseConnect.get_connection()
@@ -55,7 +55,7 @@ def create_table_friends():
     connect.close()
 
 
-# messenger_messages
+#   messenger_messages:
 #       message_id: integer
 #       authors_id: integer
 #       receivers_id: integer

@@ -75,6 +75,8 @@ def is_api_key_valid(user_id, api_key):
     query = "SELECT messenger_users.api_key FROM messenger_users WHERE id = %s"
     cursor.execute(query, (user_id,))
     record = cursor.fetchall()
+    if len(record) == 0:
+        return False
     key_from_db = record[0][0].tobytes().decode("ASCII")
     if key_from_db == api_key:
         return True
@@ -239,3 +241,36 @@ def sendMessage(userId, friendsId, message, apiKey):
             return make_response("User is not a friend or id is invalid", 406)
     else:
         return make_response("Invalid user authorization", 401)
+
+
+def loadConversation(userId, apiKey, friendsId):
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    key_valid = is_api_key_valid(userId, apiKey)
+    if key_valid:
+        try:
+            query = "SELECT * FROM messenger_messages WHERE" \
+                    " ((authors_id = %s AND receivers_id = %s) " \
+                    "OR " \
+                    "(authors_id = %s AND receivers_id = %s)) " \
+                    "ORDER BY  messages_date DESC"
+            cursor.execute(query, (userId, friendsId, friendsId, userId,))
+            result = cursor.fetchall()
+            conversation = []
+            for x in result:
+                obj = {"message_id": x[0],
+                       "authors_id": x[1],
+                       "receivers_id": x[2],
+                       "message": x[3],
+                       "message_date": x[4]}
+                conversation.append(obj)
+            connect.close()
+            cursor.close()
+            return make_response(jsonify(conversation=conversation), 200)
+        except Exception:
+            return make_response("Id invalid", 406)
+    else:
+        return make_response("Invalid user authorization", 401)
+
+
+# TODO FIX TOO BROAD Exception

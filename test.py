@@ -170,7 +170,6 @@ def test_load_friend_requests(app):
     relation_id = result_json["requests"][0]["relation_id"]
 
 
-# Confirm the request
 def test_confirm_friend_request(app):
     request = app.put(f"api/answerFriendRequest?"
                       f"userId={friend_id}&&"
@@ -258,6 +257,40 @@ def test_load_data(app):
 
     result = json.loads(request.get_data(as_text=True))
     assert result["friends"][0]["name"] == friends_name
+
+
+def test_load_data_wrong_id(app):
+    request = app.get(f"api/loadData?userId={0}&&apiKey={api_key}")
+    assert request.status_code == 401
+
+
+def test_load_data_wrong_api_key(app):
+    request = app.get(f"api/loadData?userId={test_id}&&apiKey={invalid_key}")
+    assert request.status_code == 401
+
+
+def test_load_conversation(app):
+    request = app.get(f"api/loadConversation?userId={test_id}&&apiKey={api_key}&&friendsId={friend_id}")
+    assert request.status_code == 200
+
+    result = json.loads(request.get_data(as_text=True))
+    assert result["conversation"][0]["message"] == long_message
+    assert result["conversation"][1]["message"] == message
+
+
+def test_load_conversation_friends_perspective(app):
+    request = app.get(f"api/loadConversation?userId={friend_id}&&apiKey={friend_api_key}&&friendsId={test_id}")
+    assert request.status_code == 200
+
+    result = json.loads(request.get_data(as_text=True))
+    assert result["conversation"][0]["message"] == long_message
+    assert result["conversation"][1]["message"] == message
+
+
+# TODO FIX THIS
+def test_load_conversation_wrong_friends_id(app):
+    request = app.get(f"api/loadConversation?userId={test_id}&&apiKey={api_key}&&friendsId={0}")
+    assert request.status_code == 406
 
 
 def test_delete_user(app):

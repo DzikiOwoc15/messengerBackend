@@ -181,3 +181,25 @@ paths:
           description: "data loaded"
         401:
           description: "Invalid user"
+  /loadConversation:
+    get:
+      operationId: "messenger.loadConversation"
+      summary: "Load conversation"
+      parameters:
+        - name: userId
+          in: query
+          required: True
+          type: integer
+        - name: apiKey
+          in: query
+          required: True
+          type: string
+        - name: friendsId
+          type: integer
+          required: True
+          in: query
+      responses:
+        200:
+          description: "conversation loaded successfully"
+        401:
+          description: "Invalid user"
