@@ -126,9 +126,11 @@ def loadData(userId, apiKey):
     cursor = connect.cursor()
     key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
-        query = "SELECT messenger_users.id, messenger_users.name, messenger_users.surname FROM messenger_users" \
-                "JOIN messenger_friends ON messenger_users.id = messenger_friends.user_id" \
-                "WHERE messenger_friends.friend_id = %s AND messenger_friends.status = True"
+        query = "SELECT messenger_users.id, messenger_users.name, messenger_users.surname " \
+                "FROM messenger_users, messenger_friends " \
+                "WHERE messenger_friends.friend_id = %s " \
+                "AND messenger_friends.status = True " \
+                "AND messenger_users.id = messenger_friends.user_id"
         cursor.execute(query, (userId,))
         result = cursor.fetchall()
         friends = []

@@ -252,6 +252,14 @@ def test_send_message_very_long_text(app):
     assert request.status_code == 200
 
 
+def test_load_data(app):
+    request = app.get(f"api/loadData?userId={test_id}&&apiKey={api_key}")
+    assert request.status_code == 200
+
+    result = json.loads(request.get_data(as_text=True))
+    assert result["friends"][0]["name"] == friends_name
+
+
 def test_delete_user(app):
     # Delete user and friend instance after the test
     connection = databaseConnect.get_connection()
