@@ -55,10 +55,32 @@ def create_table_friends():
     connect.close()
 
 
+#   messenger_conversations:
+#       conversation_id: integer
+#       user_id: integer
+#       friend_id: integer
+#       last_message_timestamp: timestamp
+#
+def create_table_conversations():
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    query = """CREATE TABLE messenger_conversations(
+                conversation_id INTEGER NOT NULL PRIMARY KEY GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+                user_id INTEGER NOT NULL REFERENCES messenger_users (id),
+                friend_id INTEGER NOT NULL REFERENCES messenger_users (id),
+                last_message_timestamp TIMESTAMP
+            )
+    """
+    cursor.execute(query)
+    connect.commit()
+    cursor.close()
+    connect.close()
+
+
 #   messenger_messages:
 #       message_id: integer
+#       conversation_id: integer
 #       authors_id: integer
-#       receivers_id: integer
 #       message: text
 #       messages_date: timestamp
 #
@@ -67,8 +89,8 @@ def create_table_messages():
     cursor = connect.cursor()
     query = """CREATE TABLE messenger_messages(
                 message_id INTEGER NOT NULL PRIMARY KEY GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
+                conversation_id INTEGER NOT NULL REFERENCES messenger_conversations(conversation_id),
                 authors_id INTEGER NOT NULL REFERENCES messenger_users (id),
-                receivers_id INTEGER NOT NULL REFERENCES messenger_users (id),
                 message TEXT NOT NULL,
                 messages_date TIMESTAMP NOT NULL DEFAULT current_timestamp
             )
@@ -77,6 +99,5 @@ def create_table_messages():
     connect.commit()
     cursor.close()
     connect.close()
-
 
 

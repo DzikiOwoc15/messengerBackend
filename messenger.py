@@ -274,3 +274,4 @@ def loadConversation(userId, apiKey, friendsId):
 
 
 # TODO FIX TOO BROAD Exception
+# TODO REDESIGN FUNCTIONS FOR THE NEW DATABASE SCHEMA
