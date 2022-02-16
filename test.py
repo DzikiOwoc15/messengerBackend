@@ -78,6 +78,7 @@ def test_user_create_check_database(app):
     assert result[1][0] == friends_name
 
 
+# TODO CHECK IF THERE ISN'T AN EXTRA ENTRY IN THE DB
 def test_user_already_exists_same_email(app):
     second_response = app.put(f"api/createUser?"
                               f"email={test_email}&&"
@@ -89,6 +90,7 @@ def test_user_already_exists_same_email(app):
     assert second_response.get_data(as_text=True) == "User already exists"
 
 
+# TODO CHECK IF THERE ISN'T AN EXTRA ENTRY IN THE DB
 def test_user_already_exists_same_phone(app):
     second_response = app.put(f"api/createUser?"
                               f"email={wrong_email}&&"
@@ -137,6 +139,7 @@ def test_login_user_wrong_phone(app):
     assert failed_login.get_data(as_text=True) == "Invalid email or phone number"
 
 
+# TODO CHECK IF THERE ISN'T AN EXTRA ENTRY IN THE DB
 def test_send_message_not_a_friend(app):
     request = app.put(f"api/sendMessage?"
                       f"userId={test_id}&&"
@@ -242,6 +245,7 @@ def test_send_message_invalid_friend_id(app):
     assert failed_request.status_code == 406
 
 
+# TODO CHECK IF THERE IS AN EXTRA ENTRY IN THE DB
 def test_send_message_very_long_text(app):
     request = app.put(f"api/sendMessage?"
                       f"userId={test_id}&&"
@@ -269,6 +273,7 @@ def test_load_data_wrong_api_key(app):
     assert request.status_code == 401
 
 
+# TODO CHANGE THIS TEST
 def test_load_conversation(app):
     request = app.get(f"api/loadConversation?userId={test_id}&&apiKey={api_key}&&friendsId={friend_id}")
     assert request.status_code == 200
@@ -278,6 +283,7 @@ def test_load_conversation(app):
     assert result["conversation"][1]["message"] == message
 
 
+# TODO CHANGE THIS TEST
 def test_load_conversation_friends_perspective(app):
     request = app.get(f"api/loadConversation?userId={friend_id}&&apiKey={friend_api_key}&&friendsId={test_id}")
     assert request.status_code == 200

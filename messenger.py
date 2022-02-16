@@ -123,6 +123,7 @@ def loginUser(password, email=None, phoneNumber=None):
         return make_response("Wrong password", 400)
 
 
+
 def loadData(userId, apiKey):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
@@ -176,6 +177,7 @@ def answerFriendRequest(userId, requestId, apiKey, isAccepted):
     if key_valid:
         try:
             if isAccepted:
+                # Relationship is stored in two rows, so when the request is accepted we add another row
                 query = "UPDATE messenger_friends SET status = True WHERE relation_id = %s"
                 cursor.execute(query, (requestId,))
                 get_friends_ID = f"SELECT user_id FROM messenger_friends WHERE relation_id = {requestId}"
@@ -183,6 +185,8 @@ def answerFriendRequest(userId, requestId, apiKey, isAccepted):
                 friends_id = cursor.fetchone()[0]
                 insert_relation = "INSERT INTO messenger_friends(user_id, friend_id, status) VALUES (%s, %s, True)"
                 cursor.execute(insert_relation, (userId, friends_id,))
+                conversation_query = "INSERT INTO messenger_conversations(user_id, friend_id) VALUES (%s, %s)"
+                cursor.execute(conversation_query, (userId, friends_id))
             connect.commit()
             connect.close()
             cursor.close()
@@ -228,8 +232,18 @@ def sendMessage(userId, friendsId, message, apiKey):
             cursor.execute(query_check_friend, (userId, friendsId,))
             result = cursor.fetchall()
             if len(result) != 0:
-                query = "INSERT INTO messenger_messages(authors_id, receivers_id, message) VALUES (%s, %s, %s)"
-                cursor.execute(query, (userId, friendsId, message,))
+                query_get_conversation_id = "SELECT conversation_id FROM messenger_conversations " \
+                                            "WHERE ((userId = %s AND friend_id = %s) " \
+                                            "OR (userId = %s AND friend_id = %s))"
+                cursor.execute(query_get_conversation_id, (userId, friendsId, friendsId, userId,))
+                conversation_id = cursor.fetchone()[0]
+                query = "INSERT INTO messenger_messages(authors_id, receivers_id, message, conversation_id) " \
+                        "VALUES (%s, %s, %s, %s)"
+                cursor.execute(query, (userId, friendsId, message, conversation_id,))
+                query_set_conversation_last_message_timestamp = "UPDATE messenger_conversations SET " \
+                                                                "last_message_timestamp = current_timestamp " \
+                                                                "WHERE conversation_id = %s"
+                cursor.execute(query_set_conversation_last_message_timestamp, (conversation_id,))
                 connect.commit()
                 connect.close()
                 cursor.close()
@@ -249,20 +263,25 @@ def loadConversation(userId, apiKey, friendsId):
     key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
         try:
-            query = "SELECT * FROM messenger_messages WHERE" \
+            query = "SELECT " \
+                    "messenger_messages.message_id, " \
+                    "messenger_messages.authors_id, " \
+                    "messenger_messages.message, " \
+                    "messenger_messages.messages_date  " \
+                    "FROM messenger_conversations, messenger_messages WHERE" \
                     " ((authors_id = %s AND receivers_id = %s) " \
                     "OR " \
                     "(authors_id = %s AND receivers_id = %s)) " \
-                    "ORDER BY  messages_date DESC"
+                    "AND messenger_conversations.conversation_id = messenger_messages.conversation_id" \
+                    "ORDER BY  messenger_messages.messages_date DESC"
             cursor.execute(query, (userId, friendsId, friendsId, userId,))
             result = cursor.fetchall()
             conversation = []
             for x in result:
                 obj = {"message_id": x[0],
                        "authors_id": x[1],
-                       "receivers_id": x[2],
-                       "message": x[3],
-                       "message_date": x[4]}
+                       "message": x[2],
+                       "message_date": x[3]}
                 conversation.append(obj)
             connect.close()
             cursor.close()
