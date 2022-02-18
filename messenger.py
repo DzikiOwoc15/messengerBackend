@@ -1,3 +1,5 @@
+import traceback
+
 import psycopg2
 import databaseConnect
 import generateKey
@@ -123,7 +125,6 @@ def loginUser(password, email=None, phoneNumber=None):
         return make_response("Wrong password", 400)
 
 
-
 def loadData(userId, apiKey):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
@@ -233,13 +234,13 @@ def sendMessage(userId, friendsId, message, apiKey):
             result = cursor.fetchall()
             if len(result) != 0:
                 query_get_conversation_id = "SELECT conversation_id FROM messenger_conversations " \
-                                            "WHERE ((userId = %s AND friend_id = %s) " \
-                                            "OR (userId = %s AND friend_id = %s))"
+                                            "WHERE ((user_id = %s AND friend_id = %s) " \
+                                            "OR (user_id = %s AND friend_id = %s))"
                 cursor.execute(query_get_conversation_id, (userId, friendsId, friendsId, userId,))
                 conversation_id = cursor.fetchone()[0]
-                query = "INSERT INTO messenger_messages(authors_id, receivers_id, message, conversation_id) " \
-                        "VALUES (%s, %s, %s, %s)"
-                cursor.execute(query, (userId, friendsId, message, conversation_id,))
+                query = "INSERT INTO messenger_messages(authors_id, message, conversation_id) " \
+                        "VALUES (%s, %s, %s)"
+                cursor.execute(query, (userId, message, conversation_id,))
                 query_set_conversation_last_message_timestamp = "UPDATE messenger_conversations SET " \
                                                                 "last_message_timestamp = current_timestamp " \
                                                                 "WHERE conversation_id = %s"
@@ -269,10 +270,10 @@ def loadConversation(userId, apiKey, friendsId):
                     "messenger_messages.message, " \
                     "messenger_messages.messages_date  " \
                     "FROM messenger_conversations, messenger_messages WHERE" \
-                    " ((authors_id = %s AND receivers_id = %s) " \
+                    " ((user_id = %s AND friend_id = %s) " \
                     "OR " \
-                    "(authors_id = %s AND receivers_id = %s)) " \
-                    "AND messenger_conversations.conversation_id = messenger_messages.conversation_id" \
+                    "(user_id = %s AND friend_id = %s)) " \
+                    "AND messenger_conversations.conversation_id = messenger_messages.conversation_id " \
                     "ORDER BY  messenger_messages.messages_date DESC"
             cursor.execute(query, (userId, friendsId, friendsId, userId,))
             result = cursor.fetchall()
@@ -287,10 +288,8 @@ def loadConversation(userId, apiKey, friendsId):
             cursor.close()
             return make_response(jsonify(conversation=conversation), 200)
         except Exception:
-            return make_response("Id invalid", 406)
+            return make_response(traceback.print_exc(), 406)
     else:
         return make_response("Invalid user authorization", 401)
 
-
 # TODO FIX TOO BROAD Exception
-# TODO REDESIGN FUNCTIONS FOR THE NEW DATABASE SCHEMA

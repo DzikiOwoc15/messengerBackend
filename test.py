@@ -78,7 +78,6 @@ def test_user_create_check_database(app):
     assert result[1][0] == friends_name
 
 
-# TODO CHECK IF THERE ISN'T AN EXTRA ENTRY IN THE DB
 def test_user_already_exists_same_email(app):
     second_response = app.put(f"api/createUser?"
                               f"email={test_email}&&"
@@ -89,8 +88,15 @@ def test_user_already_exists_same_email(app):
     assert second_response.status_code == 409
     assert second_response.get_data(as_text=True) == "User already exists"
 
+    # Check if there isn't an extra entry in the database
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    query = "SELECT name FROM messenger_users WHERE surname IN (%s, %s)"
+    cursor.execute(query, (test_surname, friends_surname))
+    result = cursor.fetchall()
+    assert len(result) == 2
 
-# TODO CHECK IF THERE ISN'T AN EXTRA ENTRY IN THE DB
+
 def test_user_already_exists_same_phone(app):
     second_response = app.put(f"api/createUser?"
                               f"email={wrong_email}&&"
@@ -100,6 +106,14 @@ def test_user_already_exists_same_phone(app):
                               f"surname={test_surname}")
     assert second_response.status_code == 409
     assert second_response.get_data(as_text=True) == "User already exists"
+
+    # Check if there isn't an extra entry in the database
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    query = "SELECT name FROM messenger_users WHERE surname IN (%s, %s)"
+    cursor.execute(query, (test_surname, friends_surname))
+    result = cursor.fetchall()
+    assert len(result) == 2
 
 
 def test_login_user_using_email(app):
@@ -139,7 +153,6 @@ def test_login_user_wrong_phone(app):
     assert failed_login.get_data(as_text=True) == "Invalid email or phone number"
 
 
-# TODO CHECK IF THERE ISN'T AN EXTRA ENTRY IN THE DB
 def test_send_message_not_a_friend(app):
     request = app.put(f"api/sendMessage?"
                       f"userId={test_id}&&"
@@ -147,6 +160,13 @@ def test_send_message_not_a_friend(app):
                       f"message={message}&&"
                       f"apiKey={api_key}")
     assert request.status_code == 406
+
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    query = "SELECT * FROM messenger_messages"
+    cursor.execute(query)
+    result = cursor.fetchall()
+    assert len(result) == 0
 
 
 def test_add_friend(app):
@@ -245,7 +265,6 @@ def test_send_message_invalid_friend_id(app):
     assert failed_request.status_code == 406
 
 
-# TODO CHECK IF THERE IS AN EXTRA ENTRY IN THE DB
 def test_send_message_very_long_text(app):
     request = app.put(f"api/sendMessage?"
                       f"userId={test_id}&&"
@@ -253,6 +272,14 @@ def test_send_message_very_long_text(app):
                       f"message={long_message}&&"
                       f"apiKey={api_key}")
     assert request.status_code == 200
+
+    # Check if there is an extra entry in the database
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    query = "SELECT * FROM messenger_messages"
+    cursor.execute(query)
+    result = cursor.fetchall()
+    assert len(result) == 2
 
 
 def test_load_data(app):
@@ -273,7 +300,6 @@ def test_load_data_wrong_api_key(app):
     assert request.status_code == 401
 
 
-# TODO CHANGE THIS TEST
 def test_load_conversation(app):
     request = app.get(f"api/loadConversation?userId={test_id}&&apiKey={api_key}&&friendsId={friend_id}")
     assert request.status_code == 200
@@ -283,7 +309,6 @@ def test_load_conversation(app):
     assert result["conversation"][1]["message"] == message
 
 
-# TODO CHANGE THIS TEST
 def test_load_conversation_friends_perspective(app):
     request = app.get(f"api/loadConversation?userId={friend_id}&&apiKey={friend_api_key}&&friendsId={test_id}")
     assert request.status_code == 200
@@ -293,18 +318,14 @@ def test_load_conversation_friends_perspective(app):
     assert result["conversation"][1]["message"] == message
 
 
-# TODO FIX THIS
-def test_load_conversation_wrong_friends_id(app):
-    request = app.get(f"api/loadConversation?userId={test_id}&&apiKey={api_key}&&friendsId={0}")
-    assert request.status_code == 406
-
-
 def test_delete_user(app):
     # Delete user and friend instance after the test
     connection = databaseConnect.get_connection()
     cursor = connection.cursor()
     query_messages = f"DELETE FROM messenger_messages WHERE authors_id = {test_id}"
     cursor.execute(query_messages)
+    query_conversation = f"DELETE FROM messenger_conversations WHERE user_id = {test_id} or friend_id = {test_id}"
+    cursor.execute(query_conversation)
     query_friends = f"DELETE FROM messenger_friends WHERE user_id = {test_id} or friend_id = {test_id}"
     cursor.execute(query_friends)
     query_users = "DELETE FROM messenger_users WHERE email = %s or email = %s"
