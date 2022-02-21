@@ -60,6 +60,7 @@ def create_table_friends():
 #       user_id: integer
 #       friend_id: integer
 #       last_message_timestamp: timestamp
+#       last_message: text
 #
 def create_table_conversations():
     connect = databaseConnect.get_connection()
@@ -68,7 +69,8 @@ def create_table_conversations():
                 conversation_id INTEGER NOT NULL PRIMARY KEY GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
                 user_id INTEGER NOT NULL REFERENCES messenger_users (id),
                 friend_id INTEGER NOT NULL REFERENCES messenger_users (id),
-                last_message_timestamp TIMESTAMP
+                last_message_timestamp TIMESTAMP,
+                last_message TEXT
             )
     """
     cursor.execute(query)
@@ -99,5 +101,3 @@ def create_table_messages():
     connect.commit()
     cursor.close()
     connect.close()
-
-

@@ -1,9 +1,6 @@
-import traceback
 
-import psycopg2
 import databaseConnect
 import generateKey
-import emailSending
 import os
 from binascii import hexlify
 from flask import make_response, jsonify
@@ -25,25 +22,24 @@ def createUser(email, password, phoneNumber, name, surname):
     query = "SELECT * FROM messenger_users WHERE email = %s or phone_number = %s"
     cursor.execute(query, (email, phoneNumber,))
     record = cursor.fetchall()
-    connect.close()
-    cursor.close()
     if len(record) == 0:
         # This email is not registered yet
         connect2 = databaseConnect.get_connection()
         newCursor = connect2.cursor()
         salt = os.urandom(32)
-        print(salt)
         key = generateKey.generateKey(password, salt)
         api_key = hexlify(os.urandom(32))
         query = "INSERT INTO messenger_users (email, password, salt, phone_number, api_key, name, surname) " \
                 "VALUES (%s, %s, %s, %s, %s, %s, %s)"
         newCursor.execute(query, (email, key, salt, phoneNumber, api_key, name, surname,))
         connect2.commit()
-        connect2.close()
         newCursor.close()
         # emailSending.send_email_create_account(email)
         return make_response("User created successfully", 200)
     else:
+        cursor.execute("ROLLBACK")
+        connect.commit()
+        cursor.close()
         return make_response("User already exists", 409)
 
 
@@ -64,7 +60,6 @@ def getSalt(data, type="email"):
     cursor.execute(query, (data,))
     connect.commit()
     record = cursor.fetchall()
-    connect.close()
     cursor.close()
     if len(record) == 0:
         return None
@@ -116,7 +111,6 @@ def loginUser(password, email=None, phoneNumber=None):
     password_from_db = record[0][0]
     user_id = record[0][1]
     api_key = record[0][2].tobytes().decode("ASCII")
-    connect.close()
     cursor.close()
     # data coming from database is in form of a memoryview, keep in mind to convert it to bytes with tobytes()
     if password_from_db.tobytes() == password_provided:
@@ -139,14 +133,24 @@ def loadData(userId, apiKey):
         result = cursor.fetchall()
         friends = []
         for friend in result:
-            obj = {"id": friend[0], "name": friend[1], "surname": friend[2]}
+            conversation_query = "SELECT " \
+                                 "messenger_conversations.last_message, " \
+                                 "messenger_conversations.last_message_timestamp " \
+                                 "FROM messenger_conversations " \
+                                 "WHERE ((user_id = %s AND friend_id = %s) OR " \
+                                 "(user_id = %s AND friend_id = %s))"
+            cursor.execute(conversation_query, (userId, friend[0], friend[0], userId,))
+            record = cursor.fetchall()
+            obj = {"id": friend[0],
+                   "name": friend[1],
+                   "surname": friend[2],
+                   "last_message": record[0][0],
+                   "last_message_timestamp": record[0][1]}
             friends.append(obj)
         connect.commit()
-        connect.close()
         cursor.close()
         return make_response(jsonify(friends=friends), 200)
     else:
-        connect.close()
         cursor.close()
         return make_response("invalid key", 401)
 
@@ -160,13 +164,15 @@ def sendFriendRequest(userId, friendsId, apiKey):
             query = f"INSERT INTO messenger_friends(user_id, friend_id) VALUES ({userId}, {friendsId})"
             cursor.execute(query)
             connect.commit()
-            connect.close()
             cursor.close()
             return make_response("A request has been send", 200)
         except Exception as error:
+            cursor.execute("ROLLBACK")
+            connect.commit()
             return make_response("Invalid friend id", 409)
     else:
-        connect.close()
+        cursor.execute("ROLLBACK")
+        connect.commit()
         cursor.close()
         return make_response("Invalid user authorization", 401)
 
@@ -189,13 +195,13 @@ def answerFriendRequest(userId, requestId, apiKey, isAccepted):
                 conversation_query = "INSERT INTO messenger_conversations(user_id, friend_id) VALUES (%s, %s)"
                 cursor.execute(conversation_query, (userId, friends_id))
             connect.commit()
-            connect.close()
             cursor.close()
             return make_response("Answer successful", 200)
         except Exception:
+            cursor.execute("ROLLBACK")
+            connect.commit()
             return make_response("Invalid request id", 409)
     else:
-        connect.close()
         cursor.close()
         return make_response("Invalid user authorization", 401)
 
@@ -212,11 +218,9 @@ def loadFriendRequests(userId, apiKey):
         for x in result:
             obj = {"relation_id": x[0], "user_id": x[1]}
             requests.append(obj)
-        connect.close()
         cursor.close()
         return make_response(jsonify(requests=requests), 200)
     else:
-        connect.close()
         cursor.close()
         return make_response("Invalid user authorization", 401)
 
@@ -242,17 +246,18 @@ def sendMessage(userId, friendsId, message, apiKey):
                         "VALUES (%s, %s, %s)"
                 cursor.execute(query, (userId, message, conversation_id,))
                 query_set_conversation_last_message_timestamp = "UPDATE messenger_conversations SET " \
-                                                                "last_message_timestamp = current_timestamp " \
+                                                                "last_message_timestamp = current_timestamp, " \
+                                                                "last_message = %s " \
                                                                 "WHERE conversation_id = %s"
-                cursor.execute(query_set_conversation_last_message_timestamp, (conversation_id,))
+                cursor.execute(query_set_conversation_last_message_timestamp, (message, conversation_id,))
                 connect.commit()
-                connect.close()
                 cursor.close()
                 return make_response("Message sent successfully", 200)
-            connect.close()
             cursor.close()
             return make_response("User is not a friend or id is invalid", 406)
-        except Exception:
+        except Exception as e:
+            cursor.execute("ROLLBACK")
+            connect.commit()
             return make_response("User is not a friend or id is invalid", 406)
     else:
         return make_response("Invalid user authorization", 401)
@@ -284,12 +289,14 @@ def loadConversation(userId, apiKey, friendsId):
                        "message": x[2],
                        "message_date": x[3]}
                 conversation.append(obj)
-            connect.close()
             cursor.close()
             return make_response(jsonify(conversation=conversation), 200)
-        except Exception:
-            return make_response(traceback.print_exc(), 406)
+        except Exception as e:
+            cursor.execute("ROLLBACK")
+            connect.commit()
+            return make_response(str(e), 406)
     else:
         return make_response("Invalid user authorization", 401)
 
 # TODO FIX TOO BROAD Exception
+# TODO UPDATE TESTS

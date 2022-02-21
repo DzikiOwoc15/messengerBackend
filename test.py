@@ -234,8 +234,8 @@ def test_send_message(app):
                       f"friendsId={friend_id}&&"
                       f"message={message}&&"
                       f"apiKey={api_key}")
-    assert request.status_code == 200
     assert request.get_data(as_text=True) == "Message sent successfully"
+    assert request.status_code == 200
 
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
@@ -333,3 +333,4 @@ def test_delete_user(app):
     connection.commit()
     connection.close()
     cursor.close()
+
