@@ -1,9 +1,9 @@
-
 import databaseConnect
 import generateKey
 import os
 from binascii import hexlify
 from flask import make_response, jsonify
+import logging
 
 
 #       Current schema:
@@ -297,6 +297,36 @@ def loadConversation(userId, apiKey, friendsId):
             return make_response(str(e), 406)
     else:
         return make_response("Invalid user authorization", 401)
+
+
+def loadUsersByString(userId, apiKey, givenString):
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    key_valid = is_api_key_valid(userId, apiKey)
+    if key_valid:
+        try:
+            query = "SELECT messenger_users.id, " \
+                    "((messenger_users.name || ' ') || messenger_users.surname) as full_name " \
+                    "FROM messenger_users " \
+                    "WHERE position(%s in ((messenger_users.name || ' ') || messenger_users.surname))>0 AND " \
+                    "messenger_users.id != %s AND " \
+                    "messenger_users.id NOT IN " \
+                    "(SELECT  messenger_friends.friend_id FROM messenger_friends " \
+                    "WHERE messenger_friends.user_id = %s)"
+            cursor.execute(query, (givenString, userId, userId,))
+            result = cursor.fetchall()
+            users = []
+            for person in result:
+                obj = {"id": person[0], "name": person[1]}
+                users.append(obj)
+            cursor.close()
+            return make_response(jsonify(users=users), 200)
+        except Exception as e:
+            logging.exception(e)
+            return make_response(str(e), 406)
+    else:
+        cursor.close()
+        return make_response("User id or api key is invalid", 401)
 
 # TODO FIX TOO BROAD Exception
 # TODO UPDATE TESTS

@@ -203,3 +203,27 @@ paths:
           description: "conversation loaded successfully"
         401:
           description: "Invalid user"
+  /loadUsersByString:
+    get:
+      operationId: "messenger.loadUsersByString"
+      summary: "Load all users with a given string as a name or surname"
+      parameters:
+        - name: userId
+          in: query
+          required: True
+          type: integer
+        - name: apiKey
+          in: query
+          required: True
+          type: string
+        - name: givenString
+          in: query
+          required: True
+          type: string
+      responses:
+        200:
+          description: "List of users loaded successfully"
+        401:
+          description: "Invalid user id or apiKey"
+        409:
+          description: "Invalid user_id"

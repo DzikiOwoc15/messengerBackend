@@ -141,6 +141,31 @@ def test_login_user_using_phone(app):
     friend_api_key = friends_data["api_key"]
 
 
+def test_load_users_by_string(app):
+    response = app.get(f"api/loadUsersByString?userId={test_id}&&apiKey={api_key}&&givenString={friends_name}")
+    assert response.status_code == 200
+    data = json.loads(response.get_data(as_text=True))
+    assert data["users"][0]["id"] == friend_id
+    assert len(data["users"]) == 1
+
+
+def test_load_users_by_string_invalid_id(app):
+    response = app.get(f"api/loadUsersByString?userId={0}&&apiKey={api_key}&&givenString={friends_name}")
+    assert response.status_code == 401
+
+
+def test_load_users_by_string_invalid_api_key(app):
+    response = app.get(f"api/loadUsersByString?userId={test_id}&&apiKey={invalid_key}&&givenString={friends_name}")
+    assert response.status_code == 401
+
+
+def test_load_users_by_string_search_for_yourself(app):
+    response = app.get(f"api/loadUsersByString?userId={friend_id}&&apiKey={friend_api_key}&&givenString={friends_name}")
+    assert response.status_code == 200
+    data = json.loads(response.get_data(as_text=True))
+    assert len(data["users"]) == 0
+
+
 def test_login_user_wrong_email(app):
     failed_login = app.get(f"api/loginUser?email={wrong_email}&&password={wrong_password}")
     assert failed_login.status_code == 400
