@@ -17,10 +17,10 @@ def create_table_users():
     cursor = connect.cursor()
     query = """CREATE TABLE messenger_users(
             id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
-            email text NOT NULL,
+            email text NOT NULL UNIQUE,
             name text NOT NULL,
             surname text NOT NULL,
-            phone_number text NOT NULL,
+            phone_number text NOT NULL UNIQUE,
             password bytea NOT NULL,
             salt bytea NOT NULL,
             api_key bytea NOT NULL,

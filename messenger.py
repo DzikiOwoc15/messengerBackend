@@ -18,25 +18,18 @@ import logging
 def createUser(email, password, phoneNumber, name, surname):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
-    # First check to see if the user already exists
-    query = "SELECT * FROM messenger_users WHERE email = %s or phone_number = %s"
-    cursor.execute(query, (email, phoneNumber,))
-    record = cursor.fetchall()
-    if len(record) == 0:
-        # This email is not registered yet
-        connect2 = databaseConnect.get_connection()
-        newCursor = connect2.cursor()
+    try:
         salt = os.urandom(32)
         key = generateKey.generateKey(password, salt)
         api_key = hexlify(os.urandom(32))
         query = "INSERT INTO messenger_users (email, password, salt, phone_number, api_key, name, surname) " \
                 "VALUES (%s, %s, %s, %s, %s, %s, %s)"
-        newCursor.execute(query, (email, key, salt, phoneNumber, api_key, name, surname,))
-        connect2.commit()
-        newCursor.close()
+        cursor.execute(query, (email, key, salt, phoneNumber, api_key, name, surname,))
+        connect.commit()
+        cursor.close()
         # emailSending.send_email_create_account(email)
         return make_response("User created successfully", 200)
-    else:
+    except Exception:
         cursor.execute("ROLLBACK")
         connect.commit()
         cursor.close()
@@ -329,4 +322,3 @@ def loadUsersByString(userId, apiKey, givenString):
         return make_response("User id or api key is invalid", 401)
 
 # TODO FIX TOO BROAD Exception
-# TODO UPDATE TESTS
