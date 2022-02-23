@@ -135,6 +135,24 @@ paths:
           description: "requests loaded"
         401:
           description: "Invalid user"
+  /loadNumberOfFriendRequests:
+    get:
+      operationId: "messenger.loadNumberOfFriendRequests"
+      summary: "Get number of friend requests"
+      parameters:
+        - name: userId
+          in: query
+          required: True
+          type: integer
+        - name: apiKey
+          in: query
+          required: True
+          type: string
+      responses:
+        200:
+          description: "Number of requests"
+        401:
+          description: "Invalid user authorization"
   /sendMessage:
     put:
       operationId: "messenger.sendMessage"

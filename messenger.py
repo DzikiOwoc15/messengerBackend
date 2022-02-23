@@ -218,6 +218,23 @@ def loadFriendRequests(userId, apiKey):
         return make_response("Invalid user authorization", 401)
 
 
+def loadNumberOfFriendRequests(userId, apiKey):
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    key_valid = is_api_key_valid(userId, apiKey)
+    if key_valid:
+        try:
+            query = "SELECT COUNT(relation_id) FROM messenger_friends WHERE friend_id = %s and status = False"
+            cursor.execute(query, (userId,))
+            result = cursor.fetchall()
+            return make_response(jsonify(result=result[0]), 200)
+        except Exception:
+            return make_response("Invalid user id", 401)
+    else:
+        cursor.close()
+        return make_response("Invalid user authorization", 401)
+
+
 def sendMessage(userId, friendsId, message, apiKey):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
@@ -322,3 +339,4 @@ def loadUsersByString(userId, apiKey, givenString):
         return make_response("User id or api key is invalid", 401)
 
 # TODO FIX TOO BROAD Exception
+# TODO ADD ENDPOINT NUMBER OF FRIEND REQUESTS

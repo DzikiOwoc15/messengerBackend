@@ -218,6 +218,23 @@ def test_load_friend_requests(app):
     relation_id = result_json["requests"][0]["relation_id"]
 
 
+def test_load_number_of_friend_requests(app):
+    result = app.get(f"api/loadNumberOfFriendRequests?userId={friend_id}&&apiKey={friend_api_key}")
+    assert result.status_code == 200
+    number_of_requests = json.loads(result.get_data(as_text=True))
+    assert number_of_requests["result"][0] == 1
+
+
+def test_load_number_of_friend_requests_invalid_id(app):
+    result = app.get(f"api/loadNumberOfFriendRequests?userId={0}&&apiKey={friend_api_key}")
+    assert result.status_code == 401
+
+
+def test_load_number_of_friend_requests_invalid_api_key(app):
+    result = app.get(f"api/loadNumberOfFriendRequests?userId={friend_id}&&apiKey={invalid_key}")
+    assert result.status_code == 401
+
+
 def test_confirm_friend_request(app):
     request = app.put(f"api/answerFriendRequest?"
                       f"userId={friend_id}&&"
