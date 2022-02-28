@@ -189,6 +189,9 @@ def answerFriendRequest(userId, requestId, apiKey, isAccepted):
                 cursor.execute(insert_relation, (userId, friends_id,))
                 conversation_query = "INSERT INTO messenger_conversations(user_id, friend_id) VALUES (%s, %s)"
                 cursor.execute(conversation_query, (userId, friends_id))
+            else:
+                delete_row_query = "DELETE FROM messenger_friends WHERE relation_id = %s"
+                cursor.execute(delete_row_query, (requestId,))
             connect.commit()
             cursor.close()
             return make_response("Answer successful", 200)

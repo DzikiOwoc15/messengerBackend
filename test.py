@@ -236,6 +236,43 @@ def test_load_number_of_friend_requests_invalid_api_key(app):
     assert result.status_code == 401
 
 
+def test_decline_friend_request(app):
+    global relation_id
+    request = app.put(f"api/answerFriendRequest?"
+                      f"userId={friend_id}&&"
+                      f"apiKey={friend_api_key}&&"
+                      f"requestId={relation_id}&&"
+                      f"isAccepted={False}")
+    assert request.status_code == 200
+
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    query = f"SELECT * FROM messenger_friends WHERE user_id = {test_id}"
+    cursor.execute(query)
+    record = cursor.fetchall()
+    assert len(record) == 0
+
+    send_second_request = app.put(f"api/sendFriendRequest?userId={test_id}&&friendsId={friend_id}&&apiKey={api_key}")
+    assert send_second_request.status_code == 200
+
+    # Check the database for the request
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    query = f"SELECT * FROM messenger_friends WHERE user_id = {test_id}"
+    cursor.execute(query)
+    record = cursor.fetchall()
+    assert record[0][2] == friend_id
+    assert record[0][1] == test_id
+    assert not record[0][3]
+
+    result = app.get(f"api/loadFriendRequests?userId={friend_id}&&apiKey={friend_api_key}")
+    assert result.status_code == 200
+    result_json = json.loads(result.get_data(as_text=True))
+    assert isinstance(result_json["requests"][0]["relation_id"], int)
+    relation_id = result_json["requests"][0]["relation_id"]
+    assert result_json["requests"][0]["name"] == "Kamil R"
+
+
 def test_confirm_friend_request(app):
     request = app.put(f"api/answerFriendRequest?"
                       f"userId={friend_id}&&"
