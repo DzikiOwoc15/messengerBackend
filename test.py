@@ -216,6 +216,7 @@ def test_load_friend_requests(app):
     result_json = json.loads(result.get_data(as_text=True))
     assert isinstance(result_json["requests"][0]["relation_id"], int)
     relation_id = result_json["requests"][0]["relation_id"]
+    assert result_json["requests"][0]["name"] == "Kamil R"
 
 
 def test_load_number_of_friend_requests(app):

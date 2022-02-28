@@ -1,9 +1,11 @@
+
 import databaseConnect
 import generateKey
 import os
 from binascii import hexlify
 from flask import make_response, jsonify
 import logging
+import urllib.parse
 
 
 #       Current schema:
@@ -204,12 +206,18 @@ def loadFriendRequests(userId, apiKey):
     cursor = connect.cursor()
     key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
-        query = "SELECT relation_id, user_id FROM messenger_friends WHERE friend_id = %s AND status = False"
+        query = "SELECT messenger_friends.relation_id, " \
+                "messenger_friends.user_id, " \
+                "((messenger_users.name || ' ') || messenger_users.surname) as full_name " \
+                "FROM messenger_friends, messenger_users WHERE " \
+                "friend_id = %s AND " \
+                "status = False AND " \
+                "messenger_friends.user_id = messenger_users.id"
         cursor.execute(query, (userId,))
         result = cursor.fetchall()
         requests = []
         for x in result:
-            obj = {"relation_id": x[0], "user_id": x[1]}
+            obj = {"relation_id": x[0], "user_id": x[1], "name": x[2]}
             requests.append(obj)
         cursor.close()
         return make_response(jsonify(requests=requests), 200)
@@ -323,7 +331,7 @@ def loadUsersByString(userId, apiKey, givenString):
                     "messenger_users.id NOT IN " \
                     "(SELECT  messenger_friends.friend_id FROM messenger_friends " \
                     "WHERE messenger_friends.user_id = %s)"
-            cursor.execute(query, (givenString, userId, userId,))
+            cursor.execute(query, (urllib.parse.unquote(givenString), userId, userId,))
             result = cursor.fetchall()
             users = []
             for person in result:
@@ -339,4 +347,3 @@ def loadUsersByString(userId, apiKey, givenString):
         return make_response("User id or api key is invalid", 401)
 
 # TODO FIX TOO BROAD Exception
-# TODO ADD ENDPOINT NUMBER OF FRIEND REQUESTS
