@@ -300,7 +300,7 @@ def loadConversation(userId, apiKey, friendsId):
                     "OR " \
                     "(user_id = %s AND friend_id = %s)) " \
                     "AND messenger_conversations.conversation_id = messenger_messages.conversation_id " \
-                    "ORDER BY  messenger_messages.messages_date DESC"
+                    "ORDER BY  messenger_messages.messages_date ASC"
             cursor.execute(query, (userId, friendsId, friendsId, userId,))
             result = cursor.fetchall()
             conversation = []
