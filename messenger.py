@@ -133,7 +133,8 @@ def loadData(userId, apiKey):
                                  "messenger_conversations.last_message_timestamp " \
                                  "FROM messenger_conversations " \
                                  "WHERE ((user_id = %s AND friend_id = %s) OR " \
-                                 "(user_id = %s AND friend_id = %s))"
+                                 "(user_id = %s AND friend_id = %s)) " \
+                                 "ORDER BY messenger_conversations.last_message_timestamp DESC"
             cursor.execute(conversation_query, (userId, friend[0], friend[0], userId,))
             record = cursor.fetchall()
             obj = {"id": friend[0],
@@ -265,12 +266,13 @@ def sendMessage(userId, friendsId, message, apiKey):
                 conversation_id = cursor.fetchone()[0]
                 query = "INSERT INTO messenger_messages(authors_id, message, conversation_id) " \
                         "VALUES (%s, %s, %s)"
-                cursor.execute(query, (userId, message, conversation_id,))
+                cursor.execute(query, (userId, urllib.parse.unquote(message), conversation_id,))
                 query_set_conversation_last_message_timestamp = "UPDATE messenger_conversations SET " \
                                                                 "last_message_timestamp = current_timestamp, " \
                                                                 "last_message = %s " \
                                                                 "WHERE conversation_id = %s"
-                cursor.execute(query_set_conversation_last_message_timestamp, (message, conversation_id,))
+                cursor.execute(query_set_conversation_last_message_timestamp,
+                               (urllib.parse.unquote(message), conversation_id,))
                 connect.commit()
                 cursor.close()
                 return make_response("Message sent successfully", 200)
