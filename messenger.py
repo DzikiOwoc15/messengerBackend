@@ -115,7 +115,6 @@ def loginUser(password, email=None, phoneNumber=None):
         return make_response("Wrong password", 400)
 
 
-# TODO REDESIGN THIS
 def loadData(userId, apiKey):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
