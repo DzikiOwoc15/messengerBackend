@@ -25,6 +25,7 @@ friends_password = "imapassword"
 friends_phone = 999888777
 
 relation_id = None
+conversation_id = None
 
 message = "test_message"
 long_message = "Z0mygGA06FfNpsg2IrMnKpbiN1JsHSRTfXgE18B2GDiRu2eGtyeBLqZaxjrEPxU2vcgtPSu4Ob5Bgn80aD8ozT2A3jkpUgGVDaJm" \
@@ -178,22 +179,6 @@ def test_login_user_wrong_phone(app):
     assert failed_login.get_data(as_text=True) == "Invalid email or phone number"
 
 
-def test_send_message_not_a_friend(app):
-    request = app.put(f"api/sendMessage?"
-                      f"userId={test_id}&&"
-                      f"friendsId={friend_id}&&"
-                      f"message={message}&&"
-                      f"apiKey={api_key}")
-    assert request.status_code == 406
-
-    connect = databaseConnect.get_connection()
-    cursor = connect.cursor()
-    query = "SELECT * FROM messenger_messages"
-    cursor.execute(query)
-    result = cursor.fetchall()
-    assert len(result) == 0
-
-
 def test_add_friend(app):
     request = app.put(f"api/sendFriendRequest?userId={test_id}&&friendsId={friend_id}&&apiKey={api_key}")
     assert request.status_code == 200
@@ -308,10 +293,23 @@ def test_login_user_wrong_password(app):
     assert failed_login.get_data(as_text=True) == "Wrong password"
 
 
+def test_load_data(app):
+    global conversation_id
+    request = app.get(f"api/loadData?userId={test_id}&&apiKey={api_key}")
+    assert request.status_code == 200
+
+    result = json.loads(request.get_data(as_text=True))
+    assert len(result["conversations"]) == 1
+
+    conversation_id = result["conversations"][0]["id"]
+    assert result["conversations"][0]["last_message"] is None
+    assert len(result["conversations"][0]["users"]) == 2
+
+
 def test_send_message(app):
     request = app.put(f"api/sendMessage?"
                       f"userId={test_id}&&"
-                      f"friendsId={friend_id}&&"
+                      f"conversationId={conversation_id}&&"
                       f"message={message}&&"
                       f"apiKey={api_key}")
     assert request.get_data(as_text=True) == "Message sent successfully"
@@ -330,7 +328,7 @@ def test_send_message(app):
 def test_send_message_invalid_api_key(app):
     failed_request = app.put(f"api/sendMessage?"
                              f"userId={test_id}&&"
-                             f"friendsId={friend_id}&&"
+                             f"conversationId={conversation_id}&&"
                              f"message={message}&&"
                              f"apiKey={invalid_key}")
     assert failed_request.status_code == 401
@@ -339,7 +337,7 @@ def test_send_message_invalid_api_key(app):
 def test_send_message_invalid_friend_id(app):
     failed_request = app.put(f"api/sendMessage?"
                              f"userId={test_id}&&"
-                             f"friendsId={0}&&"
+                             f"conversationId={0}&&"
                              f"message={message}&&"
                              f"apiKey={api_key}")
     assert failed_request.status_code == 406
@@ -348,7 +346,7 @@ def test_send_message_invalid_friend_id(app):
 def test_send_message_very_long_text(app):
     request = app.put(f"api/sendMessage?"
                       f"userId={test_id}&&"
-                      f"friendsId={friend_id}&&"
+                      f"conversationId={conversation_id}&&"
                       f"message={long_message}&&"
                       f"apiKey={api_key}")
     assert request.status_code == 200
@@ -362,14 +360,6 @@ def test_send_message_very_long_text(app):
     assert len(result) == 2
 
 
-def test_load_data(app):
-    request = app.get(f"api/loadData?userId={test_id}&&apiKey={api_key}")
-    assert request.status_code == 200
-
-    result = json.loads(request.get_data(as_text=True))
-    assert result["friends"][0]["name"] == friends_name
-
-
 def test_load_data_wrong_id(app):
     request = app.get(f"api/loadData?userId={0}&&apiKey={api_key}")
     assert request.status_code == 401
@@ -381,21 +371,24 @@ def test_load_data_wrong_api_key(app):
 
 
 def test_load_conversation(app):
-    request = app.get(f"api/loadConversation?userId={test_id}&&apiKey={api_key}&&friendsId={friend_id}")
+    request = app.get(f"api/loadConversation?userId={test_id}&&apiKey={api_key}&&conversationId={conversation_id}")
     assert request.status_code == 200
 
     result = json.loads(request.get_data(as_text=True))
-    assert result["conversation"][0]["message"] == long_message
-    assert result["conversation"][1]["message"] == message
+    assert result["conversation"][0]["message"] == message
+    assert result["conversation"][1]["message"] == long_message
 
 
 def test_load_conversation_friends_perspective(app):
-    request = app.get(f"api/loadConversation?userId={friend_id}&&apiKey={friend_api_key}&&friendsId={test_id}")
+    request = app.get(f"api/loadConversation?"
+                      f"userId={friend_id}&&"
+                      f"apiKey={friend_api_key}&&"
+                      f"conversationId={conversation_id}")
     assert request.status_code == 200
 
     result = json.loads(request.get_data(as_text=True))
-    assert result["conversation"][0]["message"] == long_message
-    assert result["conversation"][1]["message"] == message
+    assert result["conversation"][0]["message"] == message
+    assert result["conversation"][1]["message"] == long_message
 
 
 def test_delete_user(app):
@@ -404,7 +397,9 @@ def test_delete_user(app):
     cursor = connection.cursor()
     query_messages = f"DELETE FROM messenger_messages WHERE authors_id = {test_id}"
     cursor.execute(query_messages)
-    query_conversation = f"DELETE FROM messenger_conversations WHERE user_id = {test_id} or friend_id = {test_id}"
+    query_conversation_users = f"DELETE FROM conversation_users WHERE conversation_id = {conversation_id}"
+    cursor.execute(query_conversation_users)
+    query_conversation = f"DELETE FROM messenger_conversations WHERE conversation_id = {conversation_id}"
     cursor.execute(query_conversation)
     query_friends = f"DELETE FROM messenger_friends WHERE user_id = {test_id} or friend_id = {test_id}"
     cursor.execute(query_friends)

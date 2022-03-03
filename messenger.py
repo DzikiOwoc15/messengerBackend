@@ -1,4 +1,3 @@
-
 import databaseConnect
 import generateKey
 import os
@@ -6,6 +5,8 @@ from binascii import hexlify
 from flask import make_response, jsonify
 import logging
 import urllib.parse
+import logging
+logger = logging.getLogger('ftpuploader')
 
 
 #       Current schema:
@@ -114,38 +115,51 @@ def loginUser(password, email=None, phoneNumber=None):
         return make_response("Wrong password", 400)
 
 
+# TODO REDESIGN THIS
 def loadData(userId, apiKey):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
     key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
-        query = "SELECT messenger_users.id, messenger_users.name, messenger_users.surname " \
-                "FROM messenger_users, messenger_friends " \
-                "WHERE messenger_friends.friend_id = %s " \
-                "AND messenger_friends.status = True " \
-                "AND messenger_users.id = messenger_friends.user_id"
-        cursor.execute(query, (userId,))
-        result = cursor.fetchall()
-        friends = []
-        for friend in result:
-            conversation_query = "SELECT " \
-                                 "messenger_conversations.last_message, " \
-                                 "messenger_conversations.last_message_timestamp " \
-                                 "FROM messenger_conversations " \
-                                 "WHERE ((user_id = %s AND friend_id = %s) OR " \
-                                 "(user_id = %s AND friend_id = %s)) " \
-                                 "ORDER BY messenger_conversations.last_message_timestamp DESC"
-            cursor.execute(conversation_query, (userId, friend[0], friend[0], userId,))
-            record = cursor.fetchall()
-            obj = {"id": friend[0],
-                   "name": friend[1],
-                   "surname": friend[2],
-                   "last_message": record[0][0],
-                   "last_message_timestamp": record[0][1]}
-            friends.append(obj)
+        conversation_users_query = "SELECT " \
+                                   "messenger_users.id, " \
+                                   "messenger_users.name, " \
+                                   "messenger_users.surname, " \
+                                   "messenger_conversations.conversation_id, " \
+                                   "messenger_conversations.last_message_timestamp, " \
+                                   "messenger_conversations.last_message " \
+                                   "FROM messenger_users, messenger_conversations, conversation_users " \
+                                   "WHERE " \
+                                   "messenger_conversations.conversation_id = conversation_users.conversation_id " \
+                                   "AND " \
+                                   "messenger_users.id = conversation_users.user_id " \
+                                   "AND " \
+                                   "conversation_users.conversation_id IN " \
+                                   "(SELECT conversation_id FROM conversation_users WHERE user_id = %s) "
+        cursor.execute(conversation_users_query, (userId,))
+        res = cursor.fetchall()
+        conversations = []
+        for entry in res:
+            user_dict = {"name": entry[1],
+                         "surname": entry[2],
+                         "id": entry[0]}
+            conversation_id = entry[3]
+            id_found = False
+            for x in conversations:
+                if x["id"] == conversation_id:
+                    id_found = True
+                    x["users"].append(user_dict)
+            if not id_found:
+                last_message_timestamp = entry[4]
+                last_message = entry[5]
+                entry_dict = {"id": conversation_id,
+                              "last_message": last_message,
+                              "last_message_timestamp": last_message_timestamp,
+                              "users": [user_dict]}
+                conversations.append(entry_dict)
         connect.commit()
         cursor.close()
-        return make_response(jsonify(friends=friends), 200)
+        return make_response(jsonify(conversations=conversations), 200)
     else:
         cursor.close()
         return make_response("invalid key", 401)
@@ -157,8 +171,8 @@ def sendFriendRequest(userId, friendsId, apiKey):
     key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
         try:
-            query = f"INSERT INTO messenger_friends(user_id, friend_id) VALUES ({userId}, {friendsId})"
-            cursor.execute(query)
+            query = f"INSERT INTO messenger_friends(user_id, friend_id) VALUES (%s, %s)"
+            cursor.execute(query, (userId, friendsId,))
             connect.commit()
             cursor.close()
             return make_response("A request has been send", 200)
@@ -183,23 +197,31 @@ def answerFriendRequest(userId, requestId, apiKey, isAccepted):
                 # Relationship is stored in two rows, so when the request is accepted we add another row
                 query = "UPDATE messenger_friends SET status = True WHERE relation_id = %s"
                 cursor.execute(query, (requestId,))
-                get_friends_ID = f"SELECT user_id FROM messenger_friends WHERE relation_id = {requestId}"
-                cursor.execute(get_friends_ID)
+                get_friends_ID = f"SELECT user_id FROM messenger_friends WHERE relation_id = %s"
+                cursor.execute(get_friends_ID, (requestId,))
                 friends_id = cursor.fetchone()[0]
                 insert_relation = "INSERT INTO messenger_friends(user_id, friend_id, status) VALUES (%s, %s, True)"
                 cursor.execute(insert_relation, (userId, friends_id,))
-                conversation_query = "INSERT INTO messenger_conversations(user_id, friend_id) VALUES (%s, %s)"
-                cursor.execute(conversation_query, (userId, friends_id))
+                # Create empty conversation row
+                conversation_query = "INSERT INTO messenger_conversations DEFAULT VALUES RETURNING conversation_id"
+                cursor.execute(conversation_query)
+                # Receive it's id
+                get_empty_conversation_id = cursor.fetchone()[0]
+                # Populate conversation_users with data
+                query_insert_user = "INSERT INTO conversation_users(user_id, conversation_id) VALUES (%s, %s)"
+                cursor.execute(query_insert_user, (userId, get_empty_conversation_id,))
+                cursor.execute(query_insert_user, (friends_id, get_empty_conversation_id,))
             else:
                 delete_row_query = "DELETE FROM messenger_friends WHERE relation_id = %s"
                 cursor.execute(delete_row_query, (requestId,))
             connect.commit()
             cursor.close()
             return make_response("Answer successful", 200)
-        except Exception:
+        except Exception as E:
             cursor.execute("ROLLBACK")
             connect.commit()
-            return make_response("Invalid request id", 409)
+            logger.error(E)
+            return make_response(E, 409)
     else:
         cursor.close()
         return make_response("Invalid user authorization", 401)
@@ -247,46 +269,39 @@ def loadNumberOfFriendRequests(userId, apiKey):
         return make_response("Invalid user authorization", 401)
 
 
-def sendMessage(userId, friendsId, message, apiKey):
+def sendMessage(userId, conversationId, message, apiKey):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
     key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
         try:
-            query_check_friend = "SELECT * FROM messenger_friends WHERE" \
-                                 " user_id = %s AND friend_id = %s" \
-                                 " AND status = True"
-            cursor.execute(query_check_friend, (userId, friendsId,))
-            result = cursor.fetchall()
-            if len(result) != 0:
-                query_get_conversation_id = "SELECT conversation_id FROM messenger_conversations " \
-                                            "WHERE ((user_id = %s AND friend_id = %s) " \
-                                            "OR (user_id = %s AND friend_id = %s))"
-                cursor.execute(query_get_conversation_id, (userId, friendsId, friendsId, userId,))
-                conversation_id = cursor.fetchone()[0]
-                query = "INSERT INTO messenger_messages(authors_id, message, conversation_id) " \
-                        "VALUES (%s, %s, %s)"
-                cursor.execute(query, (userId, urllib.parse.unquote(message), conversation_id,))
-                query_set_conversation_last_message_timestamp = "UPDATE messenger_conversations SET " \
-                                                                "last_message_timestamp = current_timestamp, " \
-                                                                "last_message = %s " \
-                                                                "WHERE conversation_id = %s"
-                cursor.execute(query_set_conversation_last_message_timestamp,
-                               (urllib.parse.unquote(message), conversation_id,))
+            query_check_if_person_is_part_of_the_conversation = "SELECT EXISTS " \
+                                                                "(SELECT entry_id " \
+                                                                "FROM conversation_users " \
+                                                                "WHERE conversation_id = %s AND user_id = %s)"
+            cursor.execute(query_check_if_person_is_part_of_the_conversation, (conversationId, userId,))
+            is_part_of_the_conversation = cursor.fetchone()[0]
+            print(is_part_of_the_conversation)
+            if is_part_of_the_conversation:
+                query_insert_message = "INSERT INTO messenger_messages (conversation_id, authors_id, message) " \
+                                       "VALUES (%s, %s, %s)"
+                cursor.execute(query_insert_message, (conversationId, userId, message,))
                 connect.commit()
                 cursor.close()
                 return make_response("Message sent successfully", 200)
             cursor.close()
+            logger.error(conversationId)
             return make_response("User is not a friend or id is invalid", 406)
         except Exception as e:
             cursor.execute("ROLLBACK")
             connect.commit()
+            logger.error(e)
             return make_response("User is not a friend or id is invalid", 406)
     else:
         return make_response("Invalid user authorization", 401)
 
 
-def loadConversation(userId, apiKey, friendsId):
+def loadConversation(userId, apiKey, conversationId):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
     key_valid = is_api_key_valid(userId, apiKey)
@@ -297,13 +312,10 @@ def loadConversation(userId, apiKey, friendsId):
                     "messenger_messages.authors_id, " \
                     "messenger_messages.message, " \
                     "messenger_messages.messages_date  " \
-                    "FROM messenger_conversations, messenger_messages WHERE" \
-                    " ((user_id = %s AND friend_id = %s) " \
-                    "OR " \
-                    "(user_id = %s AND friend_id = %s)) " \
-                    "AND messenger_conversations.conversation_id = messenger_messages.conversation_id " \
+                    "FROM messenger_messages WHERE " \
+                    "messenger_messages.conversation_id = %s " \
                     "ORDER BY  messenger_messages.messages_date ASC"
-            cursor.execute(query, (userId, friendsId, friendsId, userId,))
+            cursor.execute(query, (conversationId,))
             result = cursor.fetchall()
             conversation = []
             for x in result:

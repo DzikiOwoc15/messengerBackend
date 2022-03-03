@@ -162,7 +162,7 @@ paths:
           in: query
           required: True
           type: integer
-        - name: friendsId
+        - name: conversationId
           in: query
           required: True
           type: integer
@@ -212,7 +212,7 @@ paths:
           in: query
           required: True
           type: string
-        - name: friendsId
+        - name: conversationId
           type: integer
           required: True
           in: query
