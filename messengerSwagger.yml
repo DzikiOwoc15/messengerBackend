@@ -245,3 +245,29 @@ paths:
           description: "Invalid user id or apiKey"
         409:
           description: "Invalid user_id"
+  /uploadProfilePic:
+    put:
+      operationId: "messenger.uploadProfilePic"
+      summary: "Upload profile picture"
+      consumes:
+        - multipart/form-data
+      parameters:
+        - name: userId
+          in: query
+          required: True
+          type: integer
+        - name: apiKey
+          in: query
+          required: True
+          type: string
+        - name: picture
+          in: formData
+          type: file
+          required: True
+      responses:
+        200:
+          description: "Successful upload"
+        401:
+          description: "Invalid user or apiKey"
+        409:
+          description: "File is not an image"

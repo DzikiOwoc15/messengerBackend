@@ -1,8 +1,7 @@
+import connexion
 from flask import (
-    Flask,
     render_template
 )
-import connexion
 
 app = connexion.App(__name__, specification_dir='./')
 app.add_api('messengerSwagger.yml')

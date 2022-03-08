@@ -15,18 +15,19 @@ import psycopg2
 def create_table_users():
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
-    query = """CREATE TABLE messenger_users(
-            id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1 ),
-            email text NOT NULL UNIQUE,
-            name text NOT NULL,
-            surname text NOT NULL,
-            phone_number text NOT NULL UNIQUE,
-            password bytea NOT NULL,
-            salt bytea NOT NULL,
-            api_key bytea NOT NULL,
-            CONSTRAINT messengerusers_pkey PRIMARY KEY (id)
-            )
-        """
+    query = ("CREATE TABLE messenger_users(\n"
+             "id integer NOT NULL GENERATED ALWAYS AS IDENTITY ( INCREMENT 1 START 1 MINVALUE 1 MAXVALUE 2147483647 "
+             "CACHE 1 ),\n "
+             "            email text NOT NULL UNIQUE,\n"
+             "            name text NOT NULL,\n"
+             "            surname text NOT NULL,\n"
+             "            phone_number text NOT NULL UNIQUE,\n"
+             "            password bytea NOT NULL,\n"
+             "            salt bytea NOT NULL,\n"
+             "            api_key bytea NOT NULL,\n"
+             "            CONSTRAINT messengerusers_pkey PRIMARY KEY (id)\n"
+             "            )\n"
+             "        ")
     cursor.execute(query)
     connect.commit()
     cursor.close()

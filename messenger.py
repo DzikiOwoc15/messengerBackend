@@ -6,6 +6,8 @@ from flask import make_response, jsonify
 import logging
 import urllib.parse
 import logging
+import config
+
 logger = logging.getLogger('ftpuploader')
 
 
@@ -75,6 +77,15 @@ def is_api_key_valid(user_id, api_key):
         return True
     else:
         return False
+
+
+def is_user_a_part_of_the_conversation(userId, conversationId, cursor):
+    query_check_if_person_is_part_of_the_conversation = "SELECT EXISTS " \
+                                                        "(SELECT entry_id " \
+                                                        "FROM conversation_users " \
+                                                        "WHERE conversation_id = %s AND user_id = %s)"
+    cursor.execute(query_check_if_person_is_part_of_the_conversation, (conversationId, userId,))
+    return cursor.fetchone()[0]
 
 
 # User can login using either email or phone number
@@ -274,14 +285,8 @@ def sendMessage(userId, conversationId, message, apiKey):
     key_valid = is_api_key_valid(userId, apiKey)
     if key_valid:
         try:
-            query_check_if_person_is_part_of_the_conversation = "SELECT EXISTS " \
-                                                                "(SELECT entry_id " \
-                                                                "FROM conversation_users " \
-                                                                "WHERE conversation_id = %s AND user_id = %s)"
-            cursor.execute(query_check_if_person_is_part_of_the_conversation, (conversationId, userId,))
-            is_part_of_the_conversation = cursor.fetchone()[0]
-            print(is_part_of_the_conversation)
-            if is_part_of_the_conversation:
+            is_part = is_user_a_part_of_the_conversation(userId, conversationId, cursor)
+            if is_part:
                 query_insert_message = "INSERT INTO messenger_messages (conversation_id, authors_id, message) " \
                                        "VALUES (%s, %s, %s)"
                 cursor.execute(query_insert_message, (conversationId, userId, message,))
@@ -333,6 +338,31 @@ def loadConversation(userId, apiKey, conversationId):
         return make_response("Invalid user authorization", 401)
 
 
+def loadConversationLastMessageTimeStamp(userId, apiKey, conversationId):
+    connect = databaseConnect.get_connection()
+    cursor = connect.cursor()
+    key_valid = is_api_key_valid(userId, apiKey)
+    if key_valid:
+        try:
+            if is_user_a_part_of_the_conversation(userId, conversationId, cursor):
+                query = "SELECT messenger_conversations.last_message_timestamp " \
+                        "FROM messenger_conversations " \
+                        "WHERE conversation_id = %s "
+                cursor.execute(query, (conversationId,))
+                result = cursor.fetchone()[0]
+                cursor.close()
+                return make_response(jsonify(result), 200)
+            else:
+                cursor.close()
+                return make_response("User is not a part of the conversation", 409)
+        except Exception:
+            cursor.close()
+            return make_response("Error", 406)
+    else:
+        cursor.close()
+        return make_response("Invalid userId or ApiKey", 406)
+
+
 def loadUsersByString(userId, apiKey, givenString):
     connect = databaseConnect.get_connection()
     cursor = connect.cursor()
@@ -357,9 +387,24 @@ def loadUsersByString(userId, apiKey, givenString):
             return make_response(jsonify(users=users), 200)
         except Exception as e:
             logging.exception(e)
+            cursor.close()
             return make_response(str(e), 406)
     else:
         cursor.close()
         return make_response("User id or api key is invalid", 401)
+
+
+def uploadProfilePic(userId, apiKey, picture):
+    is_key_valid = is_api_key_valid(userId, apiKey)
+    if is_key_valid or userId == 1:
+        print(picture.mimetype)
+        if picture.mimetype.startswith("image"):
+            print("It's a picture!")
+            picture.save(f"{config.PROFILE_PICTURE_PATH}\\{userId}.png")
+            return make_response("Done", 200)
+        else:
+            return make_response("File is not an image", 409)
+    else:
+        return make_response("Invalid user or apiKey", 401)
 
 # TODO FIX TOO BROAD Exception
