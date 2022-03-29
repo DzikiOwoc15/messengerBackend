@@ -271,3 +271,21 @@ paths:
           description: "Invalid user or apiKey"
         409:
           description: "File is not an image"
+  /downloadProfilePicture:
+    get:
+      operationId: "messenger.downloadProfilePicture"
+      summary: "Download profile picture"
+      parameters:
+        - name: userId
+          in: query
+          required: True
+          type: integer
+        - name: apiKey
+          in: query
+          required: True
+          type: string
+      responses:
+        200:
+          description: "Successful download"
+        401:
+          description: "Invalid user or apiKey"

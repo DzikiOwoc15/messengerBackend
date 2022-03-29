@@ -2,7 +2,7 @@ import databaseConnect
 import generateKey
 import os
 from binascii import hexlify
-from flask import make_response, jsonify
+from flask import make_response, jsonify, send_from_directory
 import logging
 import urllib.parse
 import logging
@@ -397,13 +397,20 @@ def loadUsersByString(userId, apiKey, givenString):
 def uploadProfilePic(userId, apiKey, picture):
     is_key_valid = is_api_key_valid(userId, apiKey)
     if is_key_valid or userId == 1:
-        print(picture.mimetype)
         if picture.mimetype.startswith("image"):
             print("It's a picture!")
             picture.save(f"{config.PROFILE_PICTURE_PATH}\\{userId}.png")
             return make_response("Done", 200)
         else:
             return make_response("File is not an image", 409)
+    else:
+        return make_response("Invalid user or apiKey", 401)
+
+
+def downloadProfilePicture(userId, apiKey):
+    is_key_valid = is_api_key_valid(userId, apiKey)
+    if is_key_valid or userId == 1:
+        return send_from_directory(config.PROFILE_PICTURE_PATH, "", f"{userId}.png")
     else:
         return make_response("Invalid user or apiKey", 401)
 
